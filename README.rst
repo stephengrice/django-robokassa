@@ -2,6 +2,8 @@
 django-robokassa
 ================
 
+`Read in English <README_en.rst>`_
+
 django-robokassa - это приложение для интеграции платежной системы ROBOKASSA в
 проекты на Django.
 

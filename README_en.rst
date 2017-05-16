@@ -2,6 +2,8 @@
 django-robokassa
 ================
 
+`Читать по-русски <README.rst>`_
+
 django-robokassa is an application for integrating the ROBOKASSA payment system with Django.
 
 Before use, familiarize yourself with the
@@ -88,111 +90,67 @@ Example::
 
         return render(request, 'pay_with_robokassa.html', {'form': form})
 
-В initial все параметры необязательны. Детальную справку по параметрам
-лучше посмотреть в `документации <http://robokassa.ru/ru/Doc/Ru/Interface.aspx#222>`_
-к Robokassa. Можно передавать в initial значения "пользовательских параметров",
-описанных в ROBOKASSA_EXTRA_PARAMS ('shp' к ним приписывать опять не нужно).
+In `initial` all parameters are optional. For detailed information regarding these paramters, it would be best to look in the Robokassa `documentation <http://robokassa.ru/ru/Doc/Ru/Interface.aspx#222>`_. It is possible to send the values of "custom parameters" in `initial`, described in ROBOKASSA_EXTRA_PARAMS ('shp', again, does not need to be appended to these parameters).
 
-Соответствующий шаблон::
+Corresponding template::
 
     {% extends 'base.html' %}
 
     {% block content %}
         <form action="{{ form.target }}" method="POST">
             <p>{{ form.as_p }}</p>
-            <p><input type="submit" value="Купить"></p>
+            <p><input type="submit" value="Purchase"></p>
         </form>
     {% endblock %}
 
-Форма выведется в виде набора скрытых input-тегов.
+The form is displayed as a set of hidden input tags.
 
-У формы есть атрибут target, содержащий URL, по которому форму следует
-отправлять. В тестовом режиме это будет тестовый URL, в боевом - боевой.
+The form has the attribute `target`, containing the URL to which the form will be sent. In test mode, this will be the test URL.
 
-Обратите внимание, {% csrf_token %} в форме не нужен (и более того, добавлять
-его к форме небезопасно), т.к. форма ведет на внешний сайт - сайт робокассы.
+Please note: you do not need to include {% csrf_token %} on the form (and furthermore, adding it would be unsafe), as the form leads to an external site: the Robokassa website.
 
-Вместо отправки формы можно сформировать GET-запрос. У формы есть
-метод get_redirect_url, который возвращает нужный адрес со всеми параметрами.
-Редирект на этот адрес равносилен отправке формы методом GET.
+Instead of forwarding forms, it is possible to create a GET request. The form has a `get_redirect_url` method, which returns the proper address with all parameters. Redirecting to this address is the same as sendign the form with the GET method.
 
-django-robokassa не включает в себя модели "Покупка" (``Order`` в примере),
-т.к. эта модель будет отличаться от сайта к сайту. Обработку смены статусов
-покупок следует осуществлять в обработчиках сигналов.
+django-robokassa does not include models for "Purchase" ("Order" for example), as this model will change from one site to another. Processing status changes of purchases must be implemented in the signal handlers.
 
-
-Получение результатов платежей
+Receiving Payment Results
 ------------------------------
-В Robokassa есть несколько методов определения результата платежа:
+There are several methods in Robokassa for determining the result of a payment:
 
-1. При переходе на страницы Success и Fail гарантируется, что платеж
-   соответственно прошел и не прошел
+1. Upon page arrival, Success and Fail guarantee that the payment went through or did not go through, respectively.
 
-2. При успешном или неудачном платеже Robokassa отправляет POST или GET запрос
-   на Result URL.
+2. Upon receiving a successful or failed payment, Robokassa sends a POST or GET request to the Result URL.
 
-3. Можно запрашивать статус платежа через XML-сервис.
+3. One can request the status of a payment via an XML service.
 
-В django-robokassa на данный момент поддерживаются методы 1 и 2 и их совмещение
-(дополнительная проверка, что при переходе на Success URL уже было уведомление
-на Result URL при использовании опции ROBOKASSA_STRICT_CHECK = True).
+At this time, methods 1 and 2, and any combination of the two, are supported in django-robokassa (an additional check: that upon arrival to SuccessURL, a notification to ResultURL was already there when using the option ROBOKASSA_STRICT_CHECK = True).
 
-В целях безопасности лучше всегда использовать строгую проверку
-(с подтверждением через Result URL). Ее механизм:
+For the sake of security, it is always better to use strict checks (with confirmation via Result URL). The mechanism:
 
-1. После оплаты robokassa.ru отправляет "фоновый" запрос на ResultURL.
+1. After payment, robokassa.ru sends a "background" request to ResultURL.
 
-2. Внутри view, связанного с ResultURL, происходит проверка содержащейся в
-   запросе md5-подписи через ROBOKASSA_PASSWORD2 (это второй пароль, который не
-   передается по сети и известен только отправителю и получателю).
-   ROBOKASSA_PASSWORD2 нужен для подтверждения того, что запрос был послан
-   именно с robokassa.ru.
+2. Inside the view, associated with ResultURL, a check of the MD5 signature occurs within the request via ROBOKASSA_PASSWORD2 (this is the second password, which is not transmitted over the network and is known only to the sender and recipient). ROBOKASSA_PASSWORD2 is necessary to confirm that the request was sent precisely to robokassa.ru.
 
-3. Если запрос правильный, то view шлет сигнал
-   ``robokassa.signals.result_received``. Чтоб производить
-   манипуляции внутри сайта (например, начислять средства согласно
-   пришедшему запросу или менять статус заказа), нужно добавить
-   соответствующий обработчик этого сигнала.
+3. If the request is correct, then the view sends the signal ``robokassa.signals.result_received``. To make changes in the site (for example, to add resources according to the arrival of requests or to change the status of an order), you must add the appropriate handler of that signal.
 
-4. Если все в порядке, то view, связанный с Result URL,
-   отдает robokassa.ru ответ вида ``OK<operation_id>``,
-   где ``<operation_id>`` - уникальный id текущей операции.
-   Этот ответ  необходим для того, чтобы robokassa.ru получила
-   подтверждение того, что все необходимые действия произведены.
+4. If everything is okay, then the view bound to the Result URL renders the robokassa.ru response of type ``OK<operation_id>``, where ``<operation_id>`` is a unique id for the current operation. This response is necessary to ensure that robokassa.ru received confirmation that all  necessary actions were performed.
 
-5. Если robokassa.ru получает этот ответ, то пользователь перенаправляется
-   на Success URL. На этой страничке обычно лучше вывести сообщение
-   об успешном прохождении платежа/оплаты. Если ответ view, связанной
-   с Result URL, не соответвтует ожидаемому, то пользователь перенаправляется
-   не на Success URL, а на Fail URL; там ему хорошо бы показать
-   сообщение о произошедшей ошибке.
+5. If robokassa.ru receives this response, then the user is redirected to the Success URL. On this page, it is usually best to display a message indicating that the payment was sent successfully. If the view bound to the Result URL does not correspond as expected, then the user is redirected not to the Success URL, but rather to the Fail URL; there, it would be best to show a message about the error.
 
-
-Сигналы
+Signals
 -------
 
-Обработку смены статусов покупок следует осуществлять в обработчиках сигналов.
+Processing status changes of payments should be implemented in the signal handlers.
 
-* ``robokassa.signals.result_received`` - шлется при получении уведомления от
-  Robokassa. Получение этого сигнала означает, что оплата была успешной.
-  В качестве sender передается экземпляр модели SuccessNotification, у
-  которой есть атрибуты InvId и OutSum.
+* ``robokassa.signals.result_received`` - This signal is sent when a notification is received from Robokassa. When this signal is received, it means that the payment was successful. In the `sender` property, an instance of the SuccessNotification model is passed, which has the attributes InvId and OutSum.
 
-* ``robokassa.signals.success_page_visited`` - шлется при переходе пользователя
-  на страницу успешной оплаты. Этот сигнал следует использовать вместо
-  result_received, если не используется строгая проверка
-  (ROBOKASSA_STRICT_CHECK=False)
+* ``robokassa.signals.success_page_visited`` - This signal is sent when the user arrives at the successful payment page. This signal should be used instead of `result_received`, if you are not using strict checks (ROBOKASSA_STRICT_CHECK=False)
 
-* ``robokassa.signals.fail_page_visited`` - шлется при переходе пользователя
-  на страницу ошибки оплаты. Получение этого сигнала означает, что оплата
-  не была произведена. В обработчике следует осуществлять разблокирвку товара
-  на складе и т.д.
+* ``robokassa.signals.fail_page_visited`` - This signal is sent when the user arrives at the payment error page. Receiving this signal indicates that the payment was not carried out. In the handler, you should unlock the goods in stock, and so on.
 
-Все сигналы получают параметры InvId (номер заказа), OutSum (сумма оплаты) и
-extra (словарь с дополнительными параметрами, описанными в
-ROBOKASSA_EXTRA_PARAMS).
+All signals receive the parameters InvId (order number), OutSum (payment amount), and extra (dictionary with additional parameters, described in ROBOKASSA_EXTRA_PARAMS).
 
-Пример::
+Example::
 
     from robokassa.signals import result_received
     from my_app.models import Order
@@ -211,8 +169,7 @@ ROBOKASSA_EXTRA_PARAMS).
 urls.py
 -------
 
-Для настройки Result URL, Success URL и Fail URL можно подключить
-модуль robokassa.urls::
+To configure Result URL, Success URL, and Fail URL, you can include the robokassa.urls module::
 
     urlpatterns = patterns('',
         #...
@@ -220,47 +177,38 @@ urls.py
         #...
     )
 
-Адреса, которые нужно указывать в панели robokassa, в этом случае будут иметь вид
+The addresses that you must specify in the robokassa panel will, in this case, look like the following
 
 * Result URL: ``http://yoursite.ru/robokassa/result/``
 * Success URL: ``http://yoursite.ru/robokassa/success/``
 * Fail URL: ``http://yoursite.ru/robokassa/fail/``
 
 
-Шаблоны
+Templates
 -------
 
-* ``robokassa/success.html`` - показывается в случае успешной оплаты. В
-  контексте есть переменная form типа ``SuccessRedirectForm``, InvId
-  и OutSum с параметрами заказа, а также все дополнительные параметры, описанные
-  в ROBOKASSA_EXTRA_PARAMS.
+* ``robokassa/success.html`` - displayed when a payment is successful. In the context there is a `form` variable of type ``SuccessRedirectForm``, IndId and OutSum with order parameters, and also all additional parameters described in ROBOKASSA_EXTRA_PARAMS.
 
-* ``robokassa/fail.html`` - показывается в случае неуспешной оплаты. В
-  контексте есть переменная form типа ``FailRedirectForm``, InvId
-  и OutSum с параметрами заказа, а также все дополнительные параметры, описанные
-  в ROBOKASSA_EXTRA_PARAMS.
+* ``robokassa/fail.html`` - displayed when a payment fails. In the context there is a `form` variable of type ``FailRedirectForm``, InvId and OutSum with order parameters, and also all additional parameters described in ROBOKASSA_EXTRA_PARAMS.
 
-* ``robokassa/error.html`` - показывается при ошибочном запросе к странице
-  "успех" или "неудача" (например, при ошибке в контрольной сумме). В контексте
-  есть переменная form класса ``FailRedirectForm`` или ``SuccessRedirectForm``.
+* ``robokassa/error.html`` - displayed when there is an error for the request to the "success" or "failure" page (for example, when there is a checksum error). In the context there is a `form` variable of the class ``FailRedirectForm`` or ``SuccessRedirectForm``.
 
-Разработка
-==========
+Development
+===========
 
-Разработка ведется на github: https://github.com/kmike/django-robokassa
+Development is underway on github: https://github.com/kmike/django-robokassa
 
-Пожелания, идеи, баг-репорты и тд. пишите в трекер: https://github.com/kmike/django-robokassa/issues
+Submit feature requests, ideas, bug reports, etc. to the tracker: https://github.com/kmike/django-robokassa/issues
 
-Лицензия - MIT.
+License - MIT.
 
-Тестирование
-------------
+Testing
+-------
 
-Для запуска тестов установите `tox <http://tox.testrun.org/>`_, склонируйте репозиторий
-и выполните команду
+To run tests, install `tox <http://tox.testrun.org/>`_, clone the repository and execute the command
 
 ::
 
     $ tox
 
-из корня репозитория.
+from the repository root.
